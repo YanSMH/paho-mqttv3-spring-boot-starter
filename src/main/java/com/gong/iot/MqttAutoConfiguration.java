@@ -15,9 +15,9 @@ import java.util.UUID;
 
 @Configuration
 @ConditionalOnClass(MqttClient.class)
-@ConditionalOnProperty(prefix = "spring.mqtt", name = "broker")
 @EnableConfigurationProperties(MqttProperties.class)
 @Import(MqttHandlerRegistry.class)
+@ConditionalOnProperty(prefix = "spring.mqtt", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class MqttAutoConfiguration {
 
     private final Logger logger = org.slf4j.LoggerFactory.getLogger(MqttAutoConfiguration.class);
@@ -103,7 +103,9 @@ public class MqttAutoConfiguration {
                 // 默认处理逻辑
                 //mqttMessageHandlers
                 registry.processMessage(topic, message.getPayload());
-                logger.info("收到消息 [主题: {} Qos: {}] 内容: {}", topic, message.getQos(), new String(message.getPayload()));
+                if(logger.isDebugEnabled()){
+                    logger.debug("收到消息 [主题: {} Qos: {}] 内容: {}", topic, message.getQos(), new String(message.getPayload()));
+                }
             }
 
             @Override

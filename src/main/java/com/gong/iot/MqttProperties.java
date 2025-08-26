@@ -7,13 +7,22 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "spring.mqtt")
 public class MqttProperties {
-    private String broker;
-    private String clientId;
-    private String username;
+    private String broker = "tcp://127.0.0.1:1883";
+    private String clientId = "default-g-mqtt-client";
+    private String username = "root";
+    private boolean enabled = true;
     private char[] password;
     private boolean cleanSession = true;
     private List<String> topics = new ArrayList<>();
     private ReconnectConfig reconnect = new ReconnectConfig();
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     public static class ReconnectConfig {
         private int maxAttempts = Integer.MAX_VALUE;

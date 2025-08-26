@@ -18,21 +18,28 @@
       "type": "java.lang.String",
       "description": "MQTT broker连接地址 (e.g. tcp://host:1883)",
       "sourceType": "com.gong.iot.MqttProperties",
-      "defaultValue": null
+      "defaultValue": "tcp://127.0.0.1:1883"
     },
     {
       "name": "spring.mqtt.client-id",
       "type": "java.lang.String",
       "description": "客户端ID (默认自动生成UUID)",
       "sourceType": "com.gong.iot.MqttProperties",
-      "defaultValue": null
+      "defaultValue": "default-g-mqtt-client"
     },
     {
       "name": "spring.mqtt.username",
       "type": "java.lang.String",
       "description": "MQTT认证用户名",
       "sourceType": "com.gong.iot.MqttProperties",
-      "defaultValue": null
+      "defaultValue": "root"
+    },
+    {
+      "name": "spring.mqtt.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用MQTT客户端",
+      "sourceType": "com.gong.iot.MqttProperties",
+      "defaultValue": true
     },
     {
       "name": "spring.mqtt.password",
