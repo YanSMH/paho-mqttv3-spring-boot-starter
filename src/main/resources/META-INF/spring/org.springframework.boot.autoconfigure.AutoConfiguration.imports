@@ -1,0 +1,2 @@
+# org.springframework.boot.autoconfigure.AutoConfiguration.imports (for Spring Boot 3.x)
+com.gong.iot.MqttAutoConfiguration
