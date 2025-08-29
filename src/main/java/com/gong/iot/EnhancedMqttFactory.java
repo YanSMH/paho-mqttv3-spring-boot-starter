@@ -7,10 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArraySet;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -37,6 +34,8 @@ public class EnhancedMqttFactory {
     // 创建日志记录器实例
     private final Logger logger = LoggerFactory.getLogger(EnhancedMqttFactory.class);
 
+    private ThreadPoolExecutor mqttCallBackThreadPoolExecutor;
+
     /**
      * 构造函数私有化，采用 Builder 模式创建实例
      */
@@ -49,6 +48,7 @@ public class EnhancedMqttFactory {
         this.cleanSession = builder.cleanSession;
         this.customCallback = builder.customCallback;
         this.reconnectConfig = builder.reconnectConfig;
+        this.mqttCallBackThreadPoolExecutor = builder.mqttThreadPoolExecutor;
     }
 
     /**
@@ -66,6 +66,8 @@ public class EnhancedMqttFactory {
         private boolean cleanSession = true;
         private MqttCallback customCallback;
         private ReconnectConfig reconnectConfig = new ReconnectConfig();
+
+        private ThreadPoolExecutor mqttThreadPoolExecutor;
 
         public Builder(String broker) {
             this.broker = broker;
@@ -104,6 +106,11 @@ public class EnhancedMqttFactory {
 
         public EnhancedMqttFactory build() {
             return new EnhancedMqttFactory(this);
+        }
+
+        public Builder callbackThreadPool(ThreadPoolExecutor mqttThreadPoolExecutor) {
+            this.mqttThreadPoolExecutor = mqttThreadPoolExecutor;
+            return this;
         }
     }
 
@@ -147,8 +154,8 @@ public class EnhancedMqttFactory {
      */
     private SmartReconnectCallback buildCallback(MqttClient client, MqttConnectOptions opts) {
         return customCallback != null ?
-            new SmartReconnectCallback(client, opts, reconnectConfig, customCallback) :
-            new SmartReconnectCallback(client, opts, reconnectConfig);
+            new SmartReconnectCallback(client, opts, reconnectConfig, customCallback, mqttCallBackThreadPoolExecutor) :
+            new SmartReconnectCallback(client, opts, reconnectConfig, mqttCallBackThreadPoolExecutor);
     }
 
     /**
@@ -218,20 +225,23 @@ public class EnhancedMqttFactory {
         private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
         private final AtomicInteger reconnectAttempts = new AtomicInteger(0);
 
+        private final ThreadPoolExecutor mqttCallbackThreadPoolExecutor;
+
         // 创建日志记录器实例
         private final Logger logger = LoggerFactory.getLogger(SmartReconnectCallback.class);
 
         SmartReconnectCallback(MqttClient client, MqttConnectOptions opts,
-                             ReconnectConfig config) {
-            this(client, opts, config, null);
+                               ReconnectConfig config, ThreadPoolExecutor mqttCallbackThreadPoolExecutor) {
+            this(client, opts, config, null, mqttCallbackThreadPoolExecutor);
         }
 
         SmartReconnectCallback(MqttClient client, MqttConnectOptions opts,
-                             ReconnectConfig config, MqttCallback userCallback) {
+                               ReconnectConfig config, MqttCallback userCallback, ThreadPoolExecutor mqttCallbackThreadPoolExecutor) {
             this.client = client;
             this.connOpts = opts;
             this.config = config;
             this.userCallback = userCallback;
+            this.mqttCallbackThreadPoolExecutor = mqttCallbackThreadPoolExecutor;
         }
 
         @Override
@@ -322,13 +332,26 @@ public class EnhancedMqttFactory {
         private void forwardEvent(Runnable action) {
             // 转发事件到用户回调
             if (userCallback != null) {
-                try {
-                    action.run();
-                } catch (Exception e) {
-                    logger.error("用户回调执行异常: {}", e.getMessage());
+                if (mqttCallbackThreadPoolExecutor != null) {
+                    // 使用线程池异步执行用户回调
+                    mqttCallbackThreadPoolExecutor.execute(() -> {
+                        try {
+                            action.run();
+                        } catch (Exception e) {
+                            logger.error("用户回调执行异常: {}", e.getMessage());
+                        }
+                    });
+                } else {
+                    // 如果没有线程池，则同步执行
+                    try {
+                        action.run();
+                    } catch (Exception e) {
+                        logger.error("用户回调执行异常: {}", e.getMessage());
+                    }
                 }
             }
         }
+
 
         public void shutdown() {
             this.isShutdown = true;

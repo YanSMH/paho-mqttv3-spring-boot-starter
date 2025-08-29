@@ -16,6 +16,8 @@ public class MqttProperties {
     private List<String> topics = new ArrayList<>();
     private ReconnectConfig reconnect = new ReconnectConfig();
 
+    private ThreadPoolConfig threadPool = new ThreadPoolConfig();
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -24,6 +26,54 @@ public class MqttProperties {
         this.enabled = enabled;
     }
 
+    public static class ThreadPoolConfig {
+        private int corePoolSize = 4;
+        private int maxPoolSize = 10;
+        private int queueCapacity = 50;
+        private String threadNamePrefix = "mqtt-callback-";
+
+        private int KeepAliveTime = 60;
+
+        public int getCorePoolSize() {
+            return corePoolSize;
+        }
+
+        public void setCorePoolSize(int corePoolSize) {
+            this.corePoolSize = corePoolSize;
+        }
+
+        public int getMaxPoolSize() {
+            return maxPoolSize;
+        }
+
+        public void setMaxPoolSize(int maxPoolSize) {
+            this.maxPoolSize = maxPoolSize;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
+        }
+
+        public String getThreadNamePrefix() {
+            return threadNamePrefix;
+        }
+
+        public void setThreadNamePrefix(String threadNamePrefix) {
+            this.threadNamePrefix = threadNamePrefix;
+        }
+
+        public int getKeepAliveTime() {
+            return KeepAliveTime;
+        }
+
+        public void setKeepAliveTime(int keepAliveTime) {
+            KeepAliveTime = keepAliveTime;
+        }
+    }
     public static class ReconnectConfig {
         private int maxAttempts = Integer.MAX_VALUE;
         private long initialDelay = 5000;
@@ -117,5 +167,13 @@ public class MqttProperties {
 
     public void setTopics(List<String> topics) {
         this.topics = topics;
+    }
+
+    public ThreadPoolConfig getThreadPool() {
+        return threadPool;
+    }
+
+    public void setThreadPool(ThreadPoolConfig threadPool) {
+        this.threadPool = threadPool;
     }
 }

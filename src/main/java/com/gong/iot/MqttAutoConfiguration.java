@@ -3,6 +3,7 @@ package com.gong.iot;
 import org.eclipse.paho.client.mqttv3.*;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -12,6 +13,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 @ConditionalOnClass(MqttClient.class)
@@ -29,9 +33,30 @@ public class MqttAutoConfiguration {
         logger.info("MQTT 自动配置初始化，broker: {}", properties.getBroker());
     }
 
+    @Bean(name = "mqttThreadPoolExecutor")
+    public ThreadPoolExecutor mqttThreadPoolExecutor() {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                properties.getThreadPool().getCorePoolSize(),
+                properties.getThreadPool().getMaxPoolSize(),
+                properties.getThreadPool().getKeepAliveTime(),
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(properties.getThreadPool().getQueueCapacity()),
+                new ThreadPoolExecutor.DiscardOldestPolicy());
+        executor.setThreadFactory(r -> {
+            Thread thread = new Thread(r);
+            thread.setName(properties.getThreadPool().getThreadNamePrefix() + thread.getId());
+            return thread;
+        });
+        executor.setRejectedExecutionHandler((r, executor1) -> {
+            logger.warn("任务被拒绝: {}", r);
+        });
+        return executor;
+    }
+
+
     @Bean
     @ConditionalOnMissingBean
-    public EnhancedMqttFactory enhancedMQTTFactory(@Autowired(required = false) MqttCallback mqttCallback) {
+    public EnhancedMqttFactory enhancedMQTTFactory(@Autowired(required = false) MqttCallback mqttCallback,@Qualifier("mqttThreadPoolExecutor")ThreadPoolExecutor mqttThreadPoolExecutor) {
         logger.info("创建 EnhancedMQTTFactory 实例");
         EnhancedMqttFactory.ReconnectConfig reconnectConfig = new EnhancedMqttFactory.ReconnectConfig()
                 .maxAttempts(properties.getReconnect().getMaxAttempts())
@@ -42,7 +67,8 @@ public class MqttAutoConfiguration {
         EnhancedMqttFactory.Builder builder = new EnhancedMqttFactory.Builder(properties.getBroker())
                 .clientId(properties.getClientId() != null ? properties.getClientId() : UUID.randomUUID().toString())
                 .cleanSession(properties.isCleanSession())
-                .reconnectConfig(reconnectConfig);
+                .reconnectConfig(reconnectConfig)
+                .callbackThreadPool(mqttThreadPoolExecutor);
 
         if (properties.getUsername() != null && properties.getPassword() != null) {
             logger.info("设置 MQTT 客户端认证信息");
@@ -56,6 +82,7 @@ public class MqttAutoConfiguration {
 
         return builder.build();
     }
+
 
 
     @Bean
