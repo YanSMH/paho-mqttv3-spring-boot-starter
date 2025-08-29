@@ -27,9 +27,9 @@ public class MqttProperties {
     }
 
     public static class ThreadPoolConfig {
-        private int corePoolSize = 4;
-        private int maxPoolSize = 10;
-        private int queueCapacity = 50;
+        private int corePoolSize = 10;
+        private int maxPoolSize = 200;
+        private int queueCapacity = 400;
         private String threadNamePrefix = "mqtt-callback-";
 
         private int KeepAliveTime = 60;

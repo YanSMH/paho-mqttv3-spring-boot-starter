@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -16,6 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * MQTT 消息处理器注册
+ */
 public class MqttHandlerRegistry {
     private static final Logger logger = LoggerFactory.getLogger(MqttHandlerRegistry.class);
     private final Map<Pattern, HandlerWrapper<?>> handlerMap = new ConcurrentHashMap<>();
@@ -24,6 +28,8 @@ public class MqttHandlerRegistry {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private Environment env;
     @Autowired
     public void registerHandlers(ObjectProvider<MqttMessageHandler<?>> handlers) {
         handlers.forEach(handler -> {
@@ -40,7 +46,9 @@ public class MqttHandlerRegistry {
             Class<?> payloadType,
             MqttTopic annotation
     ) {
-        String patternStr = annotation.value()
+        //如果是spring ${}, 则替换为环境变量的值
+        String value = env.resolvePlaceholders(annotation.value());
+        String patternStr = value
                 .replace("+", "[^/]+")
                 .replace("#", ".*");
 
@@ -48,11 +56,11 @@ public class MqttHandlerRegistry {
         handlerMap.put(pattern, new HandlerWrapper<>(
                 handler,
                 payloadType,
-                annotation.value(),
+                value,
                 annotation.qos()
         ));
 
-        logger.info("注册处理器 [主题: {}] => {}", annotation.value(), handler.getClass());
+        logger.info("注册处理器 [主题: {}] => {}", value, handler.getClass());
     }
 
     @SuppressWarnings("unchecked")
@@ -70,7 +78,7 @@ public class MqttHandlerRegistry {
                     HandlerWrapper<?> wrapper = entry.getValue();
                     try {
                         Object message = objectMapper.readValue(payload, wrapper.payloadType);
-                        handleMessageSafely(wrapper, message);
+                        handleMessageSafely(wrapper, message,topic);
                     } catch (IOException e) {
                         if(logger.isDebugEnabled()){
                             logger.debug("反序列化失败 [主题: {}]", topic, e);
@@ -80,10 +88,10 @@ public class MqttHandlerRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    private <T> void handleMessageSafely(HandlerWrapper<?> wrapper, Object message) {
+    private <T> void handleMessageSafely(HandlerWrapper<?> wrapper, Object message, String topic) {
         try {
             T typedMessage = (T) wrapper.payloadType.cast(message);
-            ((MqttMessageHandler<T>) wrapper.handler).handle(wrapper.originalTopic,typedMessage);
+            ((MqttMessageHandler<T>) wrapper.handler).handle(topic,typedMessage);
         } catch (ClassCastException e) {
             logger.error("类型转换失败 [预期类型: {}]", wrapper.payloadType.getName(), e);
         }
