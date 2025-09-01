@@ -1,6 +1,5 @@
 # Paho MQTTv3 Spring Boot Starter
 
-[![License](https://img.shields.io/badge/license-Apache%202-green.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Spring Boot](https://img.shields.io/badge/spring--boot-2.5.15-blue.svg)](https://spring.io/projects/spring-boot)
 
 一个基于 Eclipse Paho MQTT v3 客户端的 Spring Boot Starter，用于简化 MQTT 客户端在 Spring Boot 项目中的集成和使用。
